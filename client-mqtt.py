@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 import os
 from urllib.parse import urlparse
 import time
+import time_functions as tm
 
 mqtt_server = 'soldier-01.cloudmqtt.com'
 mqtt_port = 18488
@@ -13,9 +14,13 @@ qos = 0 # quality of service we want
 temp_path = 'system/hardware/temp'
 level_path = 'system/hardware/level'
 schedule_path = 'system/app/timing'
+days_path = 'system/app/days'
 amount_path = 'system/app/amount'
 # publish here
-report_path = 'system/bd/report'
+report_path = 'system/api/report'
+timing_remaining_path='system/api/timing'
+
+current_program = {'timing':'', 'days':'', 'amount':''}
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -35,10 +40,25 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(level_path, qos)
     client.subscribe(schedule_path, qos)
     client.subscribe(amount_path, qos)
+    client.subscribe(days_path, qos)
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
+    topic = msg.topic
+    payload = msg.payload
+    print(topic+" "+str(payload))
+
+    if topic == schedule_path:
+        print("timing")
+        current_program['timing']=payload
+        tm.ETANextWateringTime(current_program)
+    elif topic == days_path:
+        print('days')
+        current_program['days']=payload
+        tm.ETANextWateringDay(current_program)
+
+
+
 
 
 def on_publish(client, obj, mid):
@@ -59,7 +79,7 @@ client.on_message = on_message
 mqtt.on_publish = on_publish
 mqtt.on_subscribe = on_subscribe
 # Uncomment to enable debug messages
-# mqttc.on_log = on_log
+mqtt.on_log = on_log
 
 # Parse CLOUDMQTT_URL (or fallback to localhost)
 #url_str = os.environ.get('CLOUDMQTT_URL', 'mqtt://localhost:8080')
@@ -75,14 +95,16 @@ client.loop_start()
 # handles reconnecting.
 # Other loop*() functions are available that give a threaded interface and a
 # manual interface.
+
 while Connected != True:    #Wait for connection
     time.sleep(0.1)
-
+'''
+'''
 try:
     while True:
-
-        value = input("input message: ")
-        client.publish("system/ping",value)
+        pass
+        #value = input("input message: ")
+        #client.publish("system/ping",value)
 
 except KeyboardInterrupt:
 
