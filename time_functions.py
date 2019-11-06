@@ -1,14 +1,18 @@
 # time-related functions
+from pytz import timezone
 import datetime
 import re
 import numpy as np
 
 
+brazil_tmz = timezone('America/Manaus')
+
+
 # check if two programs are the same and return response boolean
 def isSameProgram(program1, program2):
-    sameDays = program1.days == program2.days
-    sameTiming = program1.timing == program2.timing
-    sameAmount = program1.amount == program2.amount
+    sameDays = program1['days'] == program2['days']
+    sameTiming = program1['timing'] == program2['timing']
+    sameAmount = program1['amount'] == program2['amount']
 
     return sameDays and sameTiming and sameAmount
 
@@ -54,11 +58,12 @@ is as follows:
     4.5 - if one of the days is today we need to check the timing.
 '''
 def ETANextWateringDay(program):
-    today = datetime.datetime.now().weekday() # 0 is monday, 6 is sunday
+    _, _, overdue = ETANextWateringTime(program) # checking if we are overdue
+    today = datetime.datetime.now(brazil_tmz).weekday() # 0 is monday, 6 is sunday
     print('today is',today)
     # expecting a string such as 'Mon Tue Wed',three letters followed by
     # a whitespace
-    days = program['days'].decode('utf-8')
+    days = program['days']
     match = re.findall(r'(\w+)\s*', days)
 
     # one array to hold the days after we converted them
@@ -78,6 +83,27 @@ def ETANextWateringDay(program):
     if(len(watering_days) == 1 and watering_days[0] > -1):
         return watering_days[0]
 
+    # today is one of the days and we havent passed the deadline yet
+    elif(len(np.where(watering_days == today)) > 0 and not overdue):
+        return today
+
+    # today is one of the days and we have already passed the deadline
+    #len(np.where(watering_days == today)[0])
+    elif(len(np.where(watering_days == today)[0]) > 0 and overdue):
+
+        index = np.where(watering_days == today)[0][0]
+
+        # if today is the last event of the week return next week's first event
+        if(watering_days[index] == watering_days.max()):
+            return watering_days.min()
+
+        # if today is first event of the week return next event of the week
+        elif(watering_days[index] == watering_days.min()):
+            return watering_days[index + 1]
+
+        # if today is an even in midweek return the next one
+        else: return watering_days[index + 1]
+
     # all days passed or no day passed case
     elif((watering_days.min() > today) or (watering_days.max() < today)):
         return watering_days.min()
@@ -88,9 +114,6 @@ def ETANextWateringDay(program):
             # return the next selected day from today
             if day > today: return day
 
-    # today is one of the days
-    elif(len(np.where(watering_days == today)) > 0):
-        return today
     # something went wrong
     else:
         return (-1)
@@ -101,8 +124,8 @@ def ETANextWateringDay(program):
 # the time constraints
 def ETANextWateringTime(program):
     #now = str(datetime.datetime.now())
-    now = datetime.datetime.now().time()
-    timing = program['timing'].decode('utf-8')
+    now = datetime.datetime.now(brazil_tmz).time()
+    timing = program['timing']
     timing_hour = int(timing[0:2])
     timing_minute = int(timing[3:5])
     # there must be a better way of doing this :D
@@ -140,20 +163,27 @@ def ETANextWateringTime(program):
 
     else:
         mins_to_deadline = 60 + timing_minute - now_minute
-        hours_to_deadline -= 1
-    print('deadline:',hours_to_deadline,':',mins_to_deadline)
+
+        if(hours_to_deadline == 0): # if we are overdue by just a few mins
+            hours_to_deadline = 23
+            passed = True
+        else: hours_to_deadline -= 1
+    #print('deadline:',hours_to_deadline,':',mins_to_deadline)
 
     return hours_to_deadline, mins_to_deadline, passed
 
 '''
-TODO:document this function
+the following block of code takes both the previous function that
+calculates the time until next watering (ETANextWateringTime) and
+the one that calculates days until next watering (ETANextWateringDay)
+and use them to calculate how many hours until the next watering event.
 '''
 def TimeToNextWatering(program):
 
     hours, mins, time_overdue = ETANextWateringTime(program)
     next_wt_day = ETANextWateringDay(program)
 
-    today = datetime.datetime.now().weekday()
+    today = datetime.datetime.now(brazil_tmz).weekday()
 
     if(next_wt_day == today):
         # if the only watering day is today but schedule's overdue

@@ -16,11 +16,13 @@ level_path = 'system/hardware/level'
 schedule_path = 'system/app/timing'
 days_path = 'system/app/days'
 amount_path = 'system/app/amount'
+next_schedule = 'system/hardware/nextWSchedule'
 # publish here
-report_path = 'system/api/report'
+report_path = 'system/report'
 timing_remaining_path='system/api/timing'
 
 current_program = {'timing':'', 'days':'', 'amount':''}
+new_program = {}
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -48,14 +50,35 @@ def on_message(client, userdata, msg):
     payload = msg.payload
     print(topic+" "+str(payload))
 
+    if topic == amount_path:
+        new_program['amount']=payload.decode('utf-8')
     if topic == schedule_path:
-        print("timing")
-        current_program['timing']=payload
-        tm.ETANextWateringTime(current_program)
-    elif topic == days_path:
-        print('days')
-        current_program['days']=payload
-        tm.ETANextWateringDay(current_program)
+        new_program['timing']=payload.decode('utf-8')
+        #tm.ETANextWateringTime(current_program)
+    elif topic == days_path: # we know this path is the last received
+        new_program['days']=payload.decode('utf-8')
+        #tm.ETANextWateringDay(current_program)
+
+        # if the new information coming is has not already been
+        # registered, replace the current program with the new one
+        # and notify the listening parties.
+        if(not tm.isSameProgram(current_program, new_program)):
+            print("new program detected, sending data to broker")
+            current_program['timing'] = new_program['timing']
+            current_program['days'] = new_program['days']
+            current_program['amount'] = new_program['amount']
+
+            h,m = tm.TimeToNextWatering(current_program)
+            timing = str(h) + ':' + str(m)
+            print('absolute time until next watering: ',timing)
+            client.publish(timing_remaining_path, timing)
+
+    # hardware requesting next schedule 
+    if topic == next_schedule:
+        h,m = tm.TimeToNextWatering(current_program)
+        timing = str(h) + ':' + str(m)
+        print('absolute time until next watering: ',timing)
+        client.publish(timing_remaining_path, timing)
 
 
 
@@ -63,7 +86,7 @@ def on_message(client, userdata, msg):
 
 def on_publish(client, obj, mid):
     print("mid: " + str(mid))
-    pass
+
 
 
 def on_subscribe(client, obj, mid, granted_qos):
