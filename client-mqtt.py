@@ -79,7 +79,7 @@ def on_message(client, userdata, msg):
             client.publish(timing_remaining_path, timing)
 
     # hardware requesting next schedule
-    if topic == next_schedule:
+    elif topic == next_schedule:
         h,m = tm.TimeToNextWatering(current_program)
         timing = str(h) + ':' + str(m)
         print('absolute time until next watering: ',timing)
