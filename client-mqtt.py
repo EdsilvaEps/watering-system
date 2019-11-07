@@ -3,6 +3,11 @@ import os
 from urllib.parse import urlparse
 import time
 import time_functions as tm
+from flask import Flask
+from flask_restful import Api
+
+app = Flask(__name__)
+api = Api(app)
 
 mqtt_server = 'soldier-01.cloudmqtt.com'
 mqtt_port = 18488
@@ -73,7 +78,7 @@ def on_message(client, userdata, msg):
             print('absolute time until next watering: ',timing)
             client.publish(timing_remaining_path, timing)
 
-    # hardware requesting next schedule 
+    # hardware requesting next schedule
     if topic == next_schedule:
         h,m = tm.TimeToNextWatering(current_program)
         timing = str(h) + ':' + str(m)
@@ -108,30 +113,44 @@ mqtt.on_log = on_log
 #url_str = os.environ.get('CLOUDMQTT_URL', 'mqtt://localhost:8080')
 #url = urlparse(url_str)
 
-# connect
-#client.username_pw_set(url.username, url.password)
-client.username_pw_set(mqtt_user, mqtt_password)
-client.connect(mqtt_server, mqtt_port)
+#PORT = '5000'
 
-client.loop_start()
-# Blocking call that processes network traffic, dispatches callbacks and
-# handles reconnecting.
-# Other loop*() functions are available that give a threaded interface and a
-# manual interface.
 
-while Connected != True:    #Wait for connection
-    time.sleep(0.1)
-'''
-'''
-try:
-    while True:
-        pass
-        #value = input("input message: ")
-        #client.publish("system/ping",value)
 
-except KeyboardInterrupt:
 
-    client.disconnect()
-    client.loop_stop()
 
-# develop some functionality for creating reports
+if __name__ == '__main__':
+
+
+    # connect
+    #client.username_pw_set(url.username, url.password)
+    client.username_pw_set(mqtt_user, mqtt_password)
+    client.connect(mqtt_server, mqtt_port)
+
+    client.loop_start()
+    # Blocking call that processes network traffic, dispatches callbacks and
+    # handles reconnecting.
+    # Other loop*() functions are available that give a threaded interface and a
+    # manual interface.
+
+    # develop some functionality for creating reports
+    port = int(os.environ.get(PORT, 5000))
+    app.run(host='0.0.0.0', port=port)
+
+    '''
+    while Connected != True:    #Wait for connection
+        time.sleep(0.1)
+    '''
+    '''
+    try:
+        while True:
+            pass
+            #value = input("input message: ")
+            #client.publish("system/ping",value)
+
+    except KeyboardInterrupt:
+
+        client.disconnect()
+        client.loop_stop()
+
+    '''
