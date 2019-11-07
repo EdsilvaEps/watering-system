@@ -48,12 +48,14 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(schedule_path, qos)
     client.subscribe(amount_path, qos)
     client.subscribe(days_path, qos)
+    client.subscribe(next_schedule, qos)
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
     topic = msg.topic
     payload = msg.payload
     print(topic+" "+str(payload))
+
 
     if topic == amount_path:
         new_program['amount']=payload.decode('utf-8')
@@ -78,8 +80,10 @@ def on_message(client, userdata, msg):
             print('absolute time until next watering: ',timing)
             client.publish(timing_remaining_path, timing)
 
+
     # hardware requesting next schedule
-    elif topic == next_schedule:
+    if topic == next_schedule:
+        print('request from hw')
         h,m = tm.TimeToNextWatering(current_program)
         timing = str(h) + ':' + str(m)
         print('absolute time until next watering: ',timing)
